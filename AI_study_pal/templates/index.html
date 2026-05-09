@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Study Pal — Your Intelligent Study Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #12182b;
+    --surface: #1a2340;
+    --surface2: #1f2a4a;
+    --border: rgba(99,102,241,0.18);
+    --accent: #6366f1;
+    --accent2: #22d3ee;
+    --accent3: #f59e0b;
+    --accent4: #10b981;
+    --text: #e8eaf0;
+    --text-dim: #8b92a8;
+    --danger: #f43f5e;
+    --glow: rgba(99,102,241,0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background ── */
+  .bg-grid {
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  .bg-blob {
+    position: fixed; z-index: 0; pointer-events: none;
+    border-radius: 50%; filter: blur(80px); opacity: 0.12;
+  }
+  .blob1 { width: 500px; height: 500px; background: #6366f1; top: -100px; left: -100px; }
+  .blob2 { width: 400px; height: 400px; background: #22d3ee; bottom: -80px; right: -80px; }
+  .blob3 { width: 300px; height: 300px; background: #f59e0b; top: 40%; left: 45%; }
+
+  /* ── Layout ── */
+  .container { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Header ── */
+  header {
+    padding: 28px 0 0;
+    text-align: center;
+    animation: fadeDown 0.8s ease both;
+  }
+  .logo {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: linear-gradient(135deg, var(--surface), var(--surface2));
+    border: 1px solid var(--border);
+    border-radius: 50px; padding: 8px 20px 8px 10px;
+    margin-bottom: 32px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .logo span { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--text-dim); letter-spacing: 1px; }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.4rem, 5vw, 3.8rem);
+    font-weight: 900;
+    background: linear-gradient(135deg, #fff 0%, var(--accent2) 60%, var(--accent) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.15; margin-bottom: 14px;
+  }
+  .subtitle {
+    font-size: 1.05rem; color: var(--text-dim); font-weight: 300;
+    max-width: 520px; margin: 0 auto 40px;
+    line-height: 1.6;
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex; justify-content: center; gap: 8px;
+    flex-wrap: wrap; margin-bottom: 36px;
+    animation: fadeUp 0.8s ease 0.2s both;
+  }
+  .tab {
+    padding: 10px 20px; border-radius: 50px;
+    border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-dim);
+    font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 500;
+    cursor: pointer; transition: all 0.25s;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .tab:hover { border-color: var(--accent); color: var(--text); }
+  .tab.active {
+    background: linear-gradient(135deg, var(--accent), #818cf8);
+    border-color: transparent; color: #fff;
+    box-shadow: 0 4px 20px var(--glow);
+  }
+
+  /* ── Panel ── */
+  .panel {
+    display: none;
+    animation: fadeUp 0.4s ease both;
+  }
+  .panel.active { display: block; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 28px;
+    margin-bottom: 20px;
+    transition: border-color 0.3s;
+  }
+  .card:hover { border-color: rgba(99,102,241,0.35); }
+  .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem; font-weight: 700;
+    margin-bottom: 20px; color: #fff;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card-badge {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    padding: 3px 10px; border-radius: 20px;
+    background: rgba(99,102,241,0.15); color: var(--accent);
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  /* ── Form Controls ── */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .form-group { display: flex; flex-direction: column; gap: 7px; }
+  label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); font-weight: 500; }
+
+  input[type="text"], input[type="number"], select, textarea {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 14px;
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--glow);
+  }
+  textarea { min-height: 130px; resize: vertical; line-height: 1.6; }
+  select option { background: #1a2035; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 24px; border-radius: 10px; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; text-decoration: none;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #818cf8);
+    color: #fff; box-shadow: 0 4px 20px var(--glow);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--glow); }
+  .btn-secondary {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text-dim);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--text); }
+  .btn-success {
+    background: linear-gradient(135deg, var(--accent4), #34d399); color: #fff;
+  }
+  .btn-cyan {
+    background: linear-gradient(135deg, var(--accent2), #38bdf8); color: #0a1628;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+  /* ── Output Areas ── */
+  .output-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; min-height: 80px;
+    font-size: 0.94rem; line-height: 1.7; color: var(--text);
+  }
+  .output-label {
+    font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--text-dim); margin-bottom: 10px;
+  }
+  .placeholder-text { color: var(--text-dim); font-style: italic; }
+
+  /* ── Study Plan ── */
+  .plan-grid { display: grid; gap: 14px; }
+  .plan-day {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px;
+    display: grid; grid-template-columns: 80px 1fr; gap: 14px;
+    align-items: start;
+  }
+  .day-badge {
+    background: linear-gradient(135deg, var(--accent), #818cf8);
+    border-radius: 10px; padding: 10px 6px;
+    text-align: center; font-family: 'Playfair Display', serif; font-size: 0.8rem;
+    color: #fff; font-weight: 700; line-height: 1.3;
+  }
+  .day-content h4 { font-size: 1rem; font-weight: 600; margin-bottom: 5px; }
+  .day-content p { font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; }
+  .day-tip { font-size: 0.8rem; color: var(--accent2); margin-top: 8px; }
+
+  /* ── Quiz ── */
+  .quiz-container { display: flex; flex-direction: column; gap: 20px; }
+  .quiz-question {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px;
+  }
+  .q-text { font-size: 1rem; font-weight: 600; margin-bottom: 14px; line-height: 1.5; }
+  .q-num { color: var(--accent); font-family: 'DM Mono', monospace; font-size: 0.85rem; margin-bottom: 6px; }
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .option {
+    background: rgba(99,102,241,0.06); border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; transition: all 0.2s; font-size: 0.9rem;
+    text-align: left; color: #e8eaf0;
+  }
+  .option:hover { background: rgba(99,102,241,0.18); border-color: var(--accent); }
+  .option.correct { background: rgba(16,185,129,0.2); border-color: var(--accent4); color: #6ee7b7; }
+  .option.wrong { background: rgba(244,63,94,0.15); border-color: var(--danger); color: #fda4af; }
+  .option.revealed { pointer-events: none; }
+  .reveal-btn {
+    margin-top: 12px; font-size: 0.8rem;
+    background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
+    color: var(--accent3); border-radius: 8px; padding: 6px 14px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .reveal-btn:hover { background: rgba(245,158,11,0.2); }
+
+  /* ── Keywords ── */
+  .keywords-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .kw-chip {
+    background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.25);
+    color: var(--accent2); border-radius: 20px; padding: 4px 13px;
+    font-family: 'DM Mono', monospace; font-size: 0.78rem;
+  }
+
+  /* ── Tips ── */
+  .tips-list { display: flex; flex-direction: column; gap: 10px; }
+  .tip-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 13px 16px;
+    font-size: 0.93rem; line-height: 1.5;
+    border-left: 3px solid var(--accent2);
+  }
+
+  /* ── Resources ── */
+  .resources-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .resource-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+    transition: all 0.25s;
+  }
+  .resource-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .resource-type {
+    font-family: 'DM Mono', monospace; font-size: 9px;
+    text-transform: uppercase; letter-spacing: 1px; color: var(--accent3);
+    margin-bottom: 7px;
+  }
+  .resource-title { font-size: 0.92rem; font-weight: 600; margin-bottom: 8px; }
+  .resource-link {
+    font-size: 0.78rem; color: var(--accent2); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .resource-link:hover { text-decoration: underline; }
+
+  /* ── Stats Bar ── */
+  .stats-bar {
+    display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .stat-chip {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 16px;
+    display: flex; flex-direction: column; align-items: center;
+    min-width: 100px;
+  }
+  .stat-val { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; }
+  .stat-label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ── Feedback Banner ── */
+  .feedback-banner {
+    background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(34,211,238,0.1));
+    border: 1px solid rgba(99,102,241,0.3);
+    border-radius: 14px; padding: 16px 20px;
+    font-size: 1rem; margin: 16px 0;
+    font-weight: 500; color: #c7d2fe;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  /* ── Loading Spinner ── */
+  .spinner {
+    width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin 0.8s linear infinite; display: inline-block;
+  }
+  .loading { display: none; align-items: center; gap: 10px; color: var(--text-dim); font-size: 0.9rem; }
+  .loading.show { display: flex; }
+
+  /* ── EDA Section ── */
+  .eda-img { width: 100%; border-radius: 12px; border: 1px solid var(--border); }
+  .score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .score-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; text-align: center;
+  }
+  .score-num {
+    font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .score-desc { font-size: 0.78rem; color: var(--text-dim); margin-top: 4px; }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center; padding: 40px 0 30px;
+    color: var(--text-dim); font-size: 0.82rem;
+    border-top: 1px solid var(--border); margin-top: 60px;
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .options { grid-template-columns: 1fr; }
+    .plan-day { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-blob blob1"></div>
+<div class="bg-blob blob2"></div>
+<div class="bg-blob blob3"></div>
+
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🤖</div>
+      <span>AI STUDY PAL · v1.0</span>
+    </div>
+    <h1>Your Intelligent<br>Study Assistant</h1>
+    <p class="subtitle">AI-powered study plans, smart quizzes, text summarization, and personalized tips — all in one place.</p>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('plan', this)">📅 Study Plan</button>
+    <button class="tab" onclick="switchTab('quiz', this)">🧠 Quiz Generator</button>
+    <button class="tab" onclick="switchTab('summarize', this)">📝 Summarizer</button>
+    <button class="tab" onclick="switchTab('tips', this)">💡 Study Tips</button>
+    <button class="tab" onclick="switchTab('resources', this)">📚 Resources</button>
+    <button class="tab" onclick="switchTab('eda', this)">📊 Data Insights</button>
+  </div>
+
+  <!-- ─────────── PANEL: STUDY PLAN ─────────── -->
+  <div id="panel-plan" class="panel active">
+    <div class="card">
+      <div class="card-title">📅 AI Study Plan Generator <span class="card-badge">Study Planner</span></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Subject</label>
+          <select id="plan-subject">
+            <option>Mathematics</option>
+            <option>Science</option>
+            <option>Computer Science</option>
+            <option>History</option>
+            <option>English</option>
+            <option>General</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Study Hours / Day</label>
+          <input type="number" id="plan-hours" value="2" min="1" max="10">
+        </div>
+        <div class="form-group">
+          <label>Study Goal</label>
+          <select id="plan-goal">
+            <option value="exam_prep">Exam Preparation</option>
+            <option value="homework">Homework & Assignments</option>
+            <option value="concept_review">Concept Review</option>
+            <option value="project">Project Work</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Number of Days</label>
+          <select id="plan-days">
+            <option value="3">3 Days</option>
+            <option value="5">5 Days</option>
+            <option value="7" selected>7 Days</option>
+            <option value="14">14 Days</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="generatePlan()">✨ Generate Plan</button>
+        <button class="btn btn-success" id="download-btn" style="display:none" onclick="downloadSchedule()">⬇️ Download CSV</button>
+        <div class="loading" id="plan-loading"><div class="spinner"></div> Generating your plan...</div>
+      </div>
+    </div>
+
+    <div id="plan-output" style="display:none;">
+      <div class="card">
+        <div id="plan-summary" style="margin-bottom:16px;"></div>
+        <div class="plan-grid" id="plan-days-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── PANEL: QUIZ ─────────── -->
+  <div id="panel-quiz" class="panel">
+    <div class="card">
+      <div class="card-title">🧠 Quiz Generator <span class="card-badge">ML · LogReg + BoW</span></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Subject</label>
+          <select id="quiz-subject">
+            <option>Mathematics</option>
+            <option>Science</option>
+            <option>Computer Science</option>
+            <option>History</option>
+            <option>English</option>
+            <option>General</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Difficulty</label>
+          <select id="quiz-difficulty">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Number of Questions</label>
+          <select id="quiz-count">
+            <option value="3">3 Questions</option>
+            <option value="5" selected>5 Questions</option>
+            <option value="8">8 Questions</option>
+            <option value="10">10 Questions</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="generateQuiz()">🎯 Generate Quiz</button>
+        <div class="loading" id="quiz-loading"><div class="spinner"></div> Generating quiz...</div>
+      </div>
+    </div>
+
+    <div id="quiz-output" style="display:none;">
+      <div class="card">
+        <div id="quiz-meta" style="margin-bottom:16px;"></div>
+        <div class="quiz-container" id="quiz-questions"></div>
+        <div style="margin-top:20px;">
+          <button class="btn btn-secondary" onclick="generateQuiz()">🔄 New Quiz</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── PANEL: SUMMARIZER ─────────── -->
+  <div id="panel-summarize" class="panel">
+    <div class="card">
+      <div class="card-title">📝 Text Summarizer <span class="card-badge">DL · Neural Scoring</span></div>
+      <div class="form-grid" style="grid-template-columns: 1fr 200px;">
+        <div class="form-group">
+          <label>Paste Your Text (min 30 words recommended)</label>
+          <textarea id="sum-text" placeholder="Paste any educational text here — a paragraph from a textbook, Wikipedia article, notes, etc. The AI will summarize it for you..."></textarea>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="form-group">
+            <label>Subject (for feedback)</label>
+            <select id="sum-subject">
+              <option>Mathematics</option>
+              <option>Science</option>
+              <option>Computer Science</option>
+              <option>History</option>
+              <option>English</option>
+              <option>General</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="summarizeText()">⚡ Summarize</button>
+        <div class="loading" id="sum-loading"><div class="spinner"></div> Analyzing text...</div>
+      </div>
+    </div>
+
+    <div id="sum-output" style="display:none;">
+      <div class="card">
+        <div id="sum-stats" style="margin-bottom:16px;"></div>
+        <div class="output-label">Summary</div>
+        <div class="output-box" id="sum-result"></div>
+        <div id="sum-feedback" style="margin-top:14px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── PANEL: TIPS ─────────── -->
+  <div id="panel-tips" class="panel">
+    <div class="card">
+      <div class="card-title">💡 Study Tips Generator <span class="card-badge">NLP · NLTK Tokenization</span></div>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Paste Text or Topic Description (optional — for keyword-based tips)</label>
+          <textarea id="tips-text" placeholder="Optionally paste text you're studying. The NLP engine will extract keywords and generate targeted tips..." style="min-height:100px;"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Subject</label>
+          <select id="tips-subject">
+            <option>Mathematics</option>
+            <option>Science</option>
+            <option>Computer Science</option>
+            <option>History</option>
+            <option>English</option>
+            <option>General</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="getTips()">💡 Get Tips</button>
+        <div class="loading" id="tips-loading"><div class="spinner"></div> Extracting keywords...</div>
+      </div>
+    </div>
+
+    <div id="tips-output" style="display:none;">
+      <div class="card">
+        <div id="keywords-section" style="margin-bottom:20px;"></div>
+        <div class="card-title" style="font-size:1rem; margin-bottom:14px;">📋 Personalized Study Tips</div>
+        <div class="tips-list" id="tips-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── PANEL: RESOURCES ─────────── -->
+  <div id="panel-resources" class="panel">
+    <div class="card">
+      <div class="card-title">📚 Resource Suggestions <span class="card-badge">ML · K-Means Clustering</span></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Subject</label>
+          <select id="res-subject">
+            <option>Mathematics</option>
+            <option>Science</option>
+            <option>Computer Science</option>
+            <option>History</option>
+            <option>English</option>
+            <option>General</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="getResources()">🔍 Find Resources</button>
+    </div>
+
+    <div id="res-output" style="display:none;">
+      <div class="card">
+        <div id="res-note" style="margin-bottom:16px; color:var(--text-dim); font-size:0.88rem;"></div>
+        <div class="resources-grid" id="res-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── PANEL: EDA ─────────── -->
+  <div id="panel-eda" class="panel">
+    <div class="card">
+      <div class="card-title">📊 Data Insights & EDA <span class="card-badge">Python · Pandas · Matplotlib</span></div>
+      <p style="color:var(--text-dim); font-size:0.9rem; margin-bottom:18px;">
+        Explore the cleaned educational dataset. This panel demonstrates the Python &amp; Data Setup phase of the project — data loading, cleaning, deduplication, and visualization.
+      </p>
+      <button class="btn btn-primary" onclick="loadEDA()">📈 Load Analysis</button>
+    </div>
+
+    <div id="eda-output" style="display:none;">
+      <div class="card">
+        <div class="card-title" style="font-size:1rem;">Dataset Statistics</div>
+        <div class="score-grid" id="eda-stats"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="font-size:1rem;">📈 Visualizations</div>
+        <img id="eda-img" class="eda-img" alt="Dataset visualization">
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<footer>
+  <div class="container">
+    <p>AI Study Pal — Web development Project</p>
+    <p style="margin-top:6px; opacity:0.5;">Built with Python · Flask · scikit-learn · Keras · NLTK · Pandas · Matplotlib</p>
+  </div>
+</footer>
+
+<script>
+// ─── Tab Switching ───────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+// ─── API Helper ──────────────────────────────
+async function post(endpoint, body) {
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+// ─── Study Plan ──────────────────────────────
+let currentPlan = null;
+
+async function generatePlan() {
+  const subject = document.getElementById('plan-subject').value;
+  const hours = document.getElementById('plan-hours').value;
+  const goal = document.getElementById('plan-goal').value;
+  const days = document.getElementById('plan-days').value;
+
+  setLoading('plan-loading', true);
+  document.getElementById('plan-output').style.display = 'none';
+
+  try {
+    const data = await post('/api/study-plan', { subject, hours, goal, days });
+    if (data.success) {
+      currentPlan = data.plan;
+      renderPlan(data.plan);
+    }
+  } catch(e) { alert('Error generating plan. Make sure the Flask server is running.'); }
+
+  setLoading('plan-loading', false);
+}
+
+function renderPlan(data) {
+  const container = document.getElementById('plan-days-container');
+  const summary = document.getElementById('plan-summary');
+
+  summary.innerHTML = `
+    <div class="stats-bar">
+      <div class="stat-chip"><div class="stat-val" style="color:var(--accent)">${data.days}</div><div class="stat-label">Days</div></div>
+      <div class="stat-chip"><div class="stat-val" style="color:var(--accent2)">${data.hours_per_day}h</div><div class="stat-label">Per Day</div></div>
+      <div class="stat-chip"><div class="stat-val" style="color:var(--accent3)">${data.total_hours}h</div><div class="stat-label">Total</div></div>
+      <div class="stat-chip"><div class="stat-val" style="color:var(--accent4); font-size:1rem;">${data.subject}</div><div class="stat-label">Subject</div></div>
+    </div>
+    <div style="color:var(--text-dim); font-size:0.88rem;">📋 ${data.summary}</div>
+  `;
+
+  container.innerHTML = data.plan.map(day => `
+    <div class="plan-day">
+      <div class="day-badge">${day.day.replace('Day ','')}<br><small style="font-family:'DM Sans';font-size:9px;font-weight:400;opacity:0.8;">${day.date_short}</small></div>
+      <div class="day-content">
+        <h4>${day.topic}</h4>
+        <p>🎯 ${day.goal} &nbsp;|&nbsp; ⏱ ${day.hours}h</p>
+        <p style="margin-top:6px;">${day.activity}</p>
+        <div class="day-tip">${day.tip}</div>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('plan-output').style.display = 'block';
+  document.getElementById('download-btn').style.display = 'inline-flex';
+}
+
+async function downloadSchedule() {
+  if (!currentPlan) return;
+  const subject = document.getElementById('plan-subject').value;
+  const res = await fetch('/api/download-schedule', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ plan: currentPlan.plan, subject })
+  });
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `${subject}_schedule.csv`; a.click();
+}
+
+// ─── Quiz ────────────────────────────────────
+async function generateQuiz() {
+  const subject = document.getElementById('quiz-subject').value;
+  const difficulty = document.getElementById('quiz-difficulty').value;
+  const num_questions = document.getElementById('quiz-count').value;
+
+  setLoading('quiz-loading', true);
+  document.getElementById('quiz-output').style.display = 'none';
+
+  try {
+    const data = await post('/api/quiz', { subject, difficulty, num_questions });
+    if (data.success) renderQuiz(data.quiz);
+  } catch(e) { alert('Error generating quiz.'); }
+
+  setLoading('quiz-loading', false);
+}
+
+function renderQuiz(quiz) {
+  const meta = document.getElementById('quiz-meta');
+  meta.innerHTML = `
+    <div class="stats-bar">
+      <div class="stat-chip"><div class="stat-val" style="color:var(--accent)">${quiz.total}</div><div class="stat-label">Questions</div></div>
+      <div class="stat-chip"><div class="stat-val" style="color:var(--accent2); font-size:1rem; text-transform:capitalize;">${quiz.difficulty}</div><div class="stat-label">Difficulty</div></div>
+      <div class="stat-chip"><div class="stat-val" style="color:var(--accent4); font-size:0.9rem;">${quiz.model_accuracy}</div><div class="stat-label">Model Acc.</div></div>
+      <div class="stat-chip"><div class="stat-val" style="color:var(--accent3); font-size:0.9rem;">${quiz.model_f1}</div><div class="stat-label">F1 Score</div></div>
+    </div>
+  `;
+
+  const container = document.getElementById('quiz-questions');
+  container.innerHTML = quiz.questions.map((q, i) => `
+    <div class="quiz-question" id="q-${i}">
+      <div class="q-num">Question ${q.id} of ${quiz.total} · ${q.difficulty.toUpperCase()}</div>
+      <div class="q-text">${q.question}</div>
+      <div class="options" id="opts-${i}">
+        ${q.options.map(opt => `
+          <button class="option" onclick="checkAnswer(${i}, this, '${escapeStr(opt)}', '${escapeStr(q.answer)}')">${opt}</button>
+        `).join('')}
+      </div>
+      <button class="reveal-btn" onclick="revealAnswer(${i}, '${escapeStr(q.answer)}')">👁 Reveal Answer</button>
+    </div>
+  `).join('');
+
+  document.getElementById('quiz-output').style.display = 'block';
+}
+
+function escapeStr(s) { return s.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+function checkAnswer(qIdx, btn, selected, correct) {
+  const opts = document.querySelectorAll(`#opts-${qIdx} .option`);
+  opts.forEach(o => {
+    o.classList.add('revealed');
+    if (o.textContent.trim() === correct) o.classList.add('correct');
+  });
+  if (selected !== correct) btn.classList.add('wrong');
+}
+
+function revealAnswer(qIdx, correct) {
+  const opts = document.querySelectorAll(`#opts-${qIdx} .option`);
+  opts.forEach(o => {
+    o.classList.add('revealed');
+    if (o.textContent.trim() === correct) o.classList.add('correct');
+  });
+}
+
+// ─── Summarizer ──────────────────────────────
+async function summarizeText() {
+  const text = document.getElementById('sum-text').value.trim();
+  const subject = document.getElementById('sum-subject').value;
+  if (!text) { alert('Please paste some text to summarize.'); return; }
+
+  setLoading('sum-loading', true);
+  document.getElementById('sum-output').style.display = 'none';
+
+  try {
+    const data = await post('/api/summarize', { text, subject });
+    if (data.success) {
+      const s = data.summary;
+      document.getElementById('sum-stats').innerHTML = `
+        <div class="stats-bar">
+          <div class="stat-chip"><div class="stat-val" style="color:var(--accent)">${s.original_words}</div><div class="stat-label">Original Words</div></div>
+          <div class="stat-chip"><div class="stat-val" style="color:var(--accent2)">${s.summary_words}</div><div class="stat-label">Summary Words</div></div>
+          <div class="stat-chip"><div class="stat-val" style="color:var(--accent4)">${s.compression}</div><div class="stat-label">Compressed</div></div>
+        </div>
+        <div style="font-size:0.78rem; color:var(--text-dim);">Method: ${s.method}</div>
+      `;
+      document.getElementById('sum-result').textContent = s.summary_text;
+      document.getElementById('sum-feedback').innerHTML = `<div class="feedback-banner">🌟 ${data.feedback}</div>`;
+      document.getElementById('sum-output').style.display = 'block';
+    }
+  } catch(e) { alert('Error summarizing text.'); }
+
+  setLoading('sum-loading', false);
+}
+
+// ─── Study Tips ──────────────────────────────
+async function getTips() {
+  const text = document.getElementById('tips-text').value.trim();
+  const subject = document.getElementById('tips-subject').value;
+
+  setLoading('tips-loading', true);
+  document.getElementById('tips-output').style.display = 'none';
+
+  try {
+    const data = await post('/api/tips', { text, subject });
+    if (data.success) {
+      const kwSection = document.getElementById('keywords-section');
+      if (data.keywords && data.keywords.length > 0) {
+        kwSection.innerHTML = `
+          <div class="output-label">Extracted Keywords (NLP Tokenization)</div>
+          <div class="keywords-wrap">
+            ${data.keywords.map(([kw, score]) => `<span class="kw-chip">${kw} <span style="opacity:0.5;">${score}</span></span>`).join('')}
+          </div>
+        `;
+      } else {
+        kwSection.innerHTML = `<div class="output-label" style="color:var(--text-dim);">No keywords extracted (no text provided — showing subject-based tips)</div>`;
+      }
+
+      document.getElementById('tips-list').innerHTML = data.tips.map(tip =>
+        `<div class="tip-item">${tip}</div>`
+      ).join('');
+
+      document.getElementById('tips-output').style.display = 'block';
+    }
+  } catch(e) { alert('Error generating tips.'); }
+
+  setLoading('tips-loading', false);
+}
+
+// ─── Resources ───────────────────────────────
+async function getResources() {
+  const subject = document.getElementById('res-subject').value;
+  document.getElementById('res-output').style.display = 'none';
+
+  try {
+    const data = await post('/api/resources', { subject });
+    if (data.success) {
+      document.getElementById('res-note').textContent = `🔗 ${data.resources.cluster_note}`;
+      document.getElementById('res-grid').innerHTML = data.resources.resources.map(r => `
+        <div class="resource-card">
+          <div class="resource-type">${r.type}</div>
+          <div class="resource-title">${r.title}</div>
+          <a class="resource-link" href="${r.url}" target="_blank" rel="noopener">Visit Resource →</a>
+        </div>
+      `).join('');
+      document.getElementById('res-output').style.display = 'block';
+    }
+  } catch(e) { alert('Error loading resources.'); }
+}
+
+// ─── EDA ─────────────────────────────────────
+async function loadEDA() {
+  try {
+    const [statsRes, vizRes] = await Promise.all([
+      fetch('/api/eda').then(r => r.json()),
+      fetch('/api/visualization').then(r => r.json())
+    ]);
+
+    if (statsRes.success) {
+      const s = statsRes.stats;
+      const subjectHtml = Object.entries(s.subjects).map(([subj, cnt]) =>
+        `<div class="score-card"><div class="score-num">${cnt}</div><div class="score-desc">${subj}</div></div>`
+      ).join('');
+      document.getElementById('eda-stats').innerHTML = `
+        <div class="score-card"><div class="score-num">${s.total_records}</div><div class="score-desc">Clean Records</div></div>
+        <div class="score-card"><div class="score-num">${s.duplicates_removed}</div><div class="score-desc">Duplicates Removed</div></div>
+        <div class="score-card"><div class="score-num">${s.unique_topics}</div><div class="score-desc">Unique Topics</div></div>
+        <div class="score-card"><div class="score-num">${s.avg_word_count}</div><div class="score-desc">Avg Word Count</div></div>
+        ${subjectHtml}
+      `;
+    }
+
+    if (vizRes.success) {
+      document.getElementById('eda-img').src = 'data:image/png;base64,' + vizRes.image;
+    }
+
+    document.getElementById('eda-output').style.display = 'block';
+  } catch(e) { alert('Error loading EDA. Make sure Flask server is running.'); }
+}
+
+// ─── Utils ───────────────────────────────────
+function setLoading(id, show) {
+  document.getElementById(id).classList.toggle('show', show);
+}
+</script>
+</body>
+</html>
